@@ -97,6 +97,7 @@ if __name__ == '__main__':
     # Load Keras model
     model = load_model(MODEL_PATH,
                        custom_objects={'LinearSpecLayer': LinearSpecLayer})
+    model.summary()
 
     image_only_model = tf.keras.Model(
         inputs=[model.layers[2].input],
@@ -121,7 +122,7 @@ if __name__ == '__main__':
     #             detection = tf.argmax(pp, 1, name=None)
     #             print(f"detected bird: {detection}")
 
-    for root, dirs, files in os.walk("/home/mi/Data/BirdNET-Tiny-50/audio/Parus major_Great Tit"):
+    for root, dirs, files in os.walk("example-data/audio"):
         for file in files:
             if file.endswith(".flac"):
 
