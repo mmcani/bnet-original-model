@@ -93,34 +93,12 @@ def loop_prediction(spectra_dir):
         print(filename)
 
 
-if __name__ == '__main__':
+def run_full_model_prediction():
     # Load Keras model
     model = load_model(MODEL_PATH,
                        custom_objects={'LinearSpecLayer': LinearSpecLayer})
     model.summary()
 
-    image_only_model = tf.keras.Model(
-        inputs=[model.layers[2].input],
-        outputs=model.outputs
-    )
-
-    # image_only_model.summary()
-
-    # # Create dummy data with input shape (1,144000)
-    # dummy_data = tf.random.uniform(shape=(1, 144000))
-    #
-    # # Run inference
-    # p = model.predict(dummy_data)
-
-    # for root, dirs, files in os.walk("/home/mi/Data/BirdNET-Tiny-50/spectra/Apus apus_Common Swift"):
-    #     for file in files:
-    #         if file.endswith(".pt"):
-    #             scientific_name, bird_name = root.split('.')[-1].split('_')
-    #             file_path = os.path.join(root, file)
-    #             spectrum = tf.convert_to_tensor(torch.load(file_path).numpy())
-    #             pp = image_only_model.predict(spectrum)
-    #             detection = tf.argmax(pp, 1, name=None)
-    #             print(f"detected bird: {detection}")
 
     for root, dirs, files in os.walk("example-data/audio"):
         for file in files:
@@ -137,3 +115,28 @@ if __name__ == '__main__':
                 bird_index = tf.argmax(pp, 1, name=None)
                 print(bird_index)
 
+
+def run_spec_only_model():
+    # Load Keras model
+    model = load_model(MODEL_PATH,
+                       custom_objects={'LinearSpecLayer': LinearSpecLayer})
+
+    image_only_model = tf.keras.Model(
+        inputs=[model.layers[2].input],
+        outputs=model.outputs
+    )
+    image_only_model.summary()
+
+    for root, dirs, files in os.walk("example-data/spectra"):
+        for file in files:
+            if file.endswith(".pt"):
+                scientific_name, bird_name = root.split('.')[-1].split('_')
+                file_path = os.path.join(root, file)
+                spectrum = tf.convert_to_tensor(torch.load(file_path).numpy())
+                pp = image_only_model.predict(spectrum)
+                detection = tf.argmax(pp, 1, name=None)
+                print(f"detected bird: {detection}")
+
+
+if __name__ == '__main__':
+    run_spec_only_model()
