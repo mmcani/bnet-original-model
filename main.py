@@ -6,6 +6,8 @@ from keras import layers as l
 from keras.models import load_model
 import torch
 import torchaudio
+import numpy as np
+from pathlib import Path
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Mute Tensorflow
 
@@ -93,14 +95,13 @@ def loop_prediction(spectra_dir):
         print(filename)
 
 
-def run_full_model_prediction():
+def run_full_model_prediction(path="example-data/audio"):
     # Load Keras model
     model = load_model(MODEL_PATH,
                        custom_objects={'LinearSpecLayer': LinearSpecLayer})
     model.summary()
 
-
-    for root, dirs, files in os.walk("example-data/audio"):
+    for root, dirs, files in os.walk(path):
         for file in files:
             if file.endswith(".flac"):
 
@@ -116,7 +117,7 @@ def run_full_model_prediction():
                 print(bird_index)
 
 
-def run_spec_only_model():
+def run_spec_only_model(path="example-data/spectra"):
     # Load Keras model
     model = load_model(MODEL_PATH,
                        custom_objects={'LinearSpecLayer': LinearSpecLayer})
@@ -127,16 +128,59 @@ def run_spec_only_model():
     )
     image_only_model.summary()
 
-    for root, dirs, files in os.walk("example-data/spectra"):
+    for root, dirs, files in os.walk(path):
         for file in files:
             if file.endswith(".pt"):
                 scientific_name, bird_name = root.split('.')[-1].split('_')
                 file_path = os.path.join(root, file)
-                spectrum = tf.convert_to_tensor(torch.load(file_path).numpy())
-                pp = image_only_model.predict(spectrum)
-                detection = tf.argmax(pp, 1, name=None)
-                print(f"detected bird: {detection}")
+                print(f"bird: {bird_name}, file: {file_path}")
+                try:
+                    spectrum = tf.convert_to_tensor(torch.load(file_path).numpy())
+                    pp = image_only_model.predict(spectrum)
+                    detection = tf.argmax(pp, 1, name=None)
+                    print(f"detected bird: {detection}")
+                except:
+                    print("load failed!")
+                    pass
+
+
+def run_full_model_logits(path="example-data/audio", save=True):
+    # Load Keras model
+    model = load_model(MODEL_PATH,
+                       custom_objects={'LinearSpecLayer': LinearSpecLayer})
+
+    logits_model = tf.keras.Model(
+        inputs=model.inputs,
+        outputs=model.layers[-2].output
+    )
+    logits_model.summary()
+
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            if file.endswith(".flac"):
+                file_path = os.path.join(root, file)
+                scientific_name, bird_name = root.split('.')[-1].split('_')
+                print(f"bird: {bird_name}, file: {file_path}")
+                # data, sample_rate = sf.read(file_path)
+                waveform, sample_rate = torchaudio.load(file_path, normalize=False)
+                waveform_tf = tf.convert_to_tensor(waveform.numpy())
+                logits = logits_model.predict(waveform_tf)
+                if save:
+                    logits_folder = root.split('/')
+                    logits_folder[1] = 'logits'
+                    logits_folder = '/'.join(logits_folder)
+                    Path(logits_folder).mkdir(parents=True, exist_ok=True)
+                    file = file.split('.')
+                    file[1] = 'csv'
+                    file = ".".join(file)
+                    csv_path = os.path.join(logits_folder, file)
+                    np.savetxt(csv_path, logits, delimiter=',')
+
+                    pass
+                print(logits)
 
 
 if __name__ == '__main__':
-    run_spec_only_model()
+    # run_spec_only_model()
+    # run_full_model_prediction()
+    run_full_model_logits()
